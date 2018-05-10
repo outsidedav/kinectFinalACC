@@ -13,7 +13,8 @@ public:
     void exit();
     
     void drawPointCloud();
-    void drawDelayedMesh();
+    void fillDelayedVec();
+    
     
     void keyPressed(int key);
     void mouseDragged(int x, int y, int button);
@@ -22,6 +23,8 @@ public:
     void mouseEntered(int x, int y);
     void mouseExited(int x, int y);
     void windowResized(int w, int h);
+    
+    std::deque<std::vector<ofVec3f>> delayVec;
     
     ofxKinect kinect;
     
@@ -35,6 +38,7 @@ public:
     
     bool bThreshWithOpenCV;
     bool bDrawPointCloud;
+    bool drawDelayMeshOn;
     
     int nearThreshold;
     int farThreshold;

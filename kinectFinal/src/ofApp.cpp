@@ -3,20 +3,18 @@
 
 //--------------------------------------------------------------
 void ofApp::setup() {
+    //from the example
     ofSetLogLevel(OF_LOG_VERBOSE);
     
     // enable depth->video image calibration
     kinect.setRegistration(true);
     
     kinect.init();
-    //kinect.init(true); // shows infrared instead of RGB video image
-    //kinect.init(false, false); // disable video image (faster fps)
     
-    kinect.open();        // opens first available kinect
-    //kinect.open(1);    // open a kinect by id, starting with 0 (sorted by serial # lexicographically))
-    //kinect.open("A00362A08602047A");    // open a kinect using it's unique serial #
+    kinect.open();
+   
     
-    // print the intrinsic IR sensor values
+    //from the example
     if(kinect.isConnected()) {
         ofLogNotice() << "sensor-emitter dist: " << kinect.getSensorEmitterDistance() << "cm";
         ofLogNotice() << "sensor-camera dist:  " << kinect.getSensorCameraDistance() << "cm";
@@ -34,7 +32,7 @@ void ofApp::setup() {
     farThreshold = 230;
     //bThreshWithOpenCV = true;
     
-    ofSetFrameRate(12);
+    //ofSetFrameRate(12);
     
     // 15 the tilt on startup
     angle = 15;
@@ -42,6 +40,7 @@ void ofApp::setup() {
     
     // start from the front
     bDrawPointCloud = false;
+    drawDelayMeshOn = false;
 }
 
 //--------------------------------------------------------------
@@ -96,13 +95,13 @@ void ofApp::update() {
 //--------------------------------------------------------------
 void ofApp::draw() {
     
-    
+    ofBackgroundGradient(ofColor(18,33,54), ofColor(18,22,28));
     ofSetColor(255, 255, 255);
     
     if(bDrawPointCloud) {
         easyCam.begin();
+        fillDelayedVec();
         drawPointCloud();
-        drawDelayedMesh();
         easyCam.end();
     } else {
         // draw from the live kinect
@@ -154,73 +153,53 @@ void ofApp::drawPointCloud() {
         for(int x = 0; x < w; x += step) {
             if(kinect.getDistanceAt(x, y) < 700 ) {
                 mesh.addColor(kinect.getColorAt(x,y));
-                mesh.addVertex(kinect.getWorldCoordinateAt(x, y));
-                //ofLogNotice() << "pixel dist: " << kinect.getDistanceAt(x, y);
-                //ofLogNotice() << "pixel: " << x << "," << y;
-            }
-            if(x == (w-10) && y == (h-10)){
-                version++;
-                mesh.save("mesh" + ofToString(version)  + ".ply");
-//                ofLogNotice() << "Filename: mesh" << version << ".ply";
-                if(version > 10){
-                    version= 0;
-                }
+                mesh.addVertex(delayVec[x][y]);
+                
             }
             
         }
     }
+    
+    
     glPointSize(3);
     ofPushMatrix();
-    // the projected points are 'upside down' and 'backwards'
     ofScale(1, -1, -1);
-    ofTranslate(0, 0, -1000); // center the points a bit
+    ofTranslate(0, 0, -1000);
     ofEnableDepthTest();
     mesh.drawVertices();
-   ofDisableDepthTest();
-    ofPopMatrix();
-    //mesh.save("bin/saved3d.ply");
-}
-
-void ofApp::drawDelayedMesh(){
-    int w = 640;
-    int h = 480;
-    int delay = 1;
-    ofMesh savedMesh;
-    ofMesh savedMesh1;
-    ofMesh savedMesh2;
-    
-    savedMesh.load("mesh" + ofToString(version + delay) + ".ply");
-    savedMesh.setMode(OF_PRIMITIVE_POINTS);
-    savedMesh1.load("mesh" + ofToString(version + delay + 1) + ".ply");
-    savedMesh1.setMode(OF_PRIMITIVE_POINTS);
-    savedMesh2.load("mesh" + ofToString(version + delay + 2) + ".ply");
-    savedMesh2.setMode(OF_PRIMITIVE_POINTS);
-    
-    //should set color, but isn't working
-//    int step = 10;
-//    for(int y = 0; y < h; y += step) {
-//        for(int x = 0; x < w; x += step) {
-//            savedMesh.addColor(ofColor::red);
-//        }
-//    }
-    //ofLogNotice() << "mesh" + ofToString(version + 2) + ".ply";
-    
-    
-
-    //glPointSize(3);
-    ofPushMatrix();
-    
-    // the projected points are 'upside down' and 'backwards'
-    
-    ofScale(1, -1, -1);
-    ofTranslate(0, 0, -1000); // center the points a bit
-    ofEnableDepthTest();
-    savedMesh.drawVertices();
-    savedMesh1.drawVertices();
-    savedMesh2.drawVertices();
     ofDisableDepthTest();
     ofPopMatrix();
     
+}
+
+void ofApp::fillDelayedVec(){
+    
+    int w = 640;
+    int h = 480;
+    
+    vector<ofVec3f> points;
+    //ofMesh mesh;
+    //mesh.setMode(OF_PRIMITIVE_POINTS);
+    int step = 2;
+    for(int y = 0; y < h; y += step) {
+        for(int x = 0; x < w; x += step) {
+            if(kinect.getDistanceAt(x, y) < 700 ) {
+                //mesh.addColor(kinect.getColorAt(x,y));
+                points.push_back(kinect.getWorldCoordinateAt(x, y));
+            }
+        }
+    }
+    
+    
+    
+    if(delayVec.size() > 3){
+        delayVec.pop_front();
+    }else{
+        delayVec.push_back(points);
+    }
+    
+    
+
 }
 
 //--------------------------------------------------------------
@@ -235,6 +214,11 @@ void ofApp::keyPressed (int key) {
     switch (key) {
         case ' ':
             bThreshWithOpenCV = !bThreshWithOpenCV;
+            break;
+        case '`':
+        case '~':
+            
+            drawDelayMeshOn = !drawDelayMeshOn;
             break;
             
         case'p':
